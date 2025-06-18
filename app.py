@@ -1,8 +1,8 @@
 import streamlit as st
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
+import json
 from datetime import datetime
+import os
 
 # Page configuration
 st.set_page_config(
@@ -85,30 +85,164 @@ st.markdown("""
         padding: 0.5rem 2rem;
         font-weight: bold;
     }
+    .resume-button {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: bold;
+        font-size: 16px;
+        display: inline-block;
+        margin: 10px 5px;
+        transition: all 0.3s ease;
+    }
+    .resume-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+    }
+    .social-links a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    .social-links a:hover {
+        color: #764ba2;
+        text-decoration: underline;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# Helper function to create skill tags
+# Discord notification function
+def send_discord_notification(name, email, subject, message):
+    """
+    Function to send notification to Discord using webhook
+    """
+    try:
+        webhook_url = os.getenv("DISCORD_WEBHOOK_URL") or st.secrets.get("DISCORD_WEBHOOK_URL")
+        
+        if not webhook_url:
+            return False, "Discord webhook URL not configured"
+        embed = {
+            "title": "🌟 New Portfolio Contact Message",
+            "description": f"**Subject:** {subject}",
+            "color": 6719530,
+            "fields": [
+                {
+                    "name": "👤 Name",
+                    "value": name,
+                    "inline": True
+                },
+                {
+                    "name": "📧 Email",
+                    "value": email,
+                    "inline": True
+                },
+                {
+                    "name": "📝 Message",
+                    "value": message[:1000] + ("..." if len(message) > 1000 else ""),
+                    "inline": False
+                }
+            ],
+            "footer": {
+                "text": f"Portfolio Website • {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            },
+            "thumbnail": {
+                "url": "https://cdn-icons-png.flaticon.com/512/3682/3682321.png"
+            }
+        }
+        
+        payload = {
+            "username": "Portfolio Bot",
+            "avatar_url": "https://cdn-icons-png.flaticon.com/512/3682/3682321.png",
+            "embeds": [embed]
+        }
+        
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            headers={'Content-Type': 'application/json'}
+        )
+        
+        if response.status_code == 204:
+            return True, "Discord notification sent successfully!"
+        else:
+            return False, f"Discord API returned status code: {response.status_code}"
+            
+    except Exception as e:
+        return False, f"Error sending Discord notification: {str(e)}"
+
+def send_simple_discord_notification(name, email, subject, message):
+    """
+    Simple Discord notification without embeds (fallback)
+    """
+    try:
+        webhook_url = os.getenv("DISCORD_WEBHOOK_URL") or st.secrets.get("DISCORD_WEBHOOK_URL")
+        
+        if not webhook_url:
+            return False, "Discord webhook URL not configured"
+        
+        content = f"""
+🌟 **New Portfolio Contact Message**
+
+👤 **Name:** {name}
+📧 **Email:** {email}
+📋 **Subject:** {subject}
+
+📝 **Message:**
+{message}
+
+---
+*Sent from Portfolio Website at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+        """
+        
+        payload = {
+            "content": content,
+            "username": "Portfolio Bot"
+        }
+        
+        response = requests.post(webhook_url, json=payload)
+        
+        if response.status_code == 204:
+            return True, "Discord notification sent successfully!"
+        else:
+            return False, f"Discord API returned status code: {response.status_code}"
+            
+    except Exception as e:
+        return False, f"Error sending Discord notification: {str(e)}"
+
 def create_skill_tags(skills_list):
     skills_html = ""
     for skill in skills_list:
         skills_html += f'<span class="skill-tag">{skill}</span>'
     return skills_html
 
-# HEADER SECTION
 st.markdown('<h1 class="main-header">Deven Bhasin</h1>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">AI/Software/Cloud Engineer</p>', unsafe_allow_html=True)
 
-# Contact info in header
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.markdown("📍 **Brisbane, QLD, Australia**")
 with col2:
-    st.markdown("📞 **+61 0412711759**")
+    st.markdown("📞 **[+61 0412711759](tel:+610412711759)**")
 with col3:
-    st.markdown("✉️ **devenbhasin4123@gmail.com**")
+    st.markdown("✉️ **[devenbhasin4123@gmail.com](mailto:devenbhasin4123@gmail.com)**")
 with col4:
-    st.markdown("🔗 **[LinkedIn](https://www.linkedin.com/in/devenbhasin/) | [GitHub](https://github.com/dbhasin4123)**")
+    st.markdown("""
+    <div class="social-links">
+    🔗 <a href="https://www.linkedin.com/in/devenbhasin/" target="_blank">LinkedIn</a> | 
+    <a href="https://github.com/dbhasin4123" target="_blank">GitHub</a>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("""
+<div style="text-align: center; margin: 20px 0;">
+    <a href="https://drive.google.com/file/d/1f07tZ_zD3VcSpMkuMj2zW69mTJgOahxE/view?usp=sharing" target="_blank" class="resume-button">
+        📄 View Resume
+    </a>
+</div>
+""", unsafe_allow_html=True)
 
 # Key metrics
 col1, col2, col3 = st.columns(3)
@@ -183,7 +317,6 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# PROJECTS SECTION
 st.markdown('<h2 class="section-header">Featured Projects</h2>', unsafe_allow_html=True)
 
 # Project 1 & 2
@@ -200,6 +333,11 @@ with col1:
             <li>Load tested with k6 for <strong>50 concurrent users</strong></li>
             <li>Web-scraping service for <strong>8+ e-commerce sites</strong></li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["Python", "Node.js", "AWS", "Docker", "PostgreSQL"]), unsafe_allow_html=True)
@@ -215,6 +353,11 @@ with col2:
             <li>Smart filtering by interests, location, and time range</li>
             <li>NLTK preprocessing for enhanced text analysis</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/news-summarizer" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["Python", "Llama 3.2", "Streamlit", "OpenAI"]), unsafe_allow_html=True)
@@ -233,6 +376,11 @@ with col1:
             <li>Intelligent job-to-candidate matching</li>
             <li>OpenAI GPT integration for advanced analysis</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/ai-recruiter" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["Python", "OpenAI", "Streamlit", "PDF Processing"]), unsafe_allow_html=True)
@@ -248,6 +396,11 @@ with col2:
             <li>ChromaDB for semantic search</li>
             <li>LangChain integration for advanced NLP</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/doc-assistant" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["Python", "LangChain", "ChromaDB", "RAG"]), unsafe_allow_html=True)
@@ -266,6 +419,11 @@ with col1:
             <li>Accessibility-focused design</li>
             <li>Multi-language support</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/Elderly-Immigrant-Integration" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["React Native", "Node.js", "WebSocket", "Translation APIs"]), unsafe_allow_html=True)
@@ -281,6 +439,11 @@ with col2:
             <li>Achieved <strong>90% Dice coefficient</strong></li>
             <li>Medical AI with high precision requirements</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/PatternAnalysis-2023/tree/topic-recognition/recognition/Improved%20UNet%20Model%20ISIC-48241328" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["TensorFlow", "Medical AI", "Computer Vision"]), unsafe_allow_html=True)
@@ -298,6 +461,11 @@ with col1:
             <li>Weather uncertainty and energy dispatch analysis</li>
             <li>Spatio-temporal correlation studies</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/REIT4842_Thesis" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Research
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["Python", "Machine Learning", "Statistical Analysis"]), unsafe_allow_html=True)
@@ -312,6 +480,11 @@ with col2:
             <li>nRF52 and STM32 platforms with Zephyr RTOS</li>
             <li>Proof-of-Work blockchain for data integrity</li>
         </ul>
+        <div style="margin-top: 10px;">
+            <a href="https://github.com/dbhasin4123/Blockchain-Embedded-system" target="_blank" style="color: #667eea; text-decoration: none; font-weight: bold;">
+                🔗 View Project
+            </a>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     st.markdown(create_skill_tags(["C", "Zephyr RTOS", "Blockchain", "IoT"]), unsafe_allow_html=True)
@@ -418,7 +591,7 @@ with col2:
     - Handwritten Text Recognition (TIET)
     """)
 
-# CONTACT SECTION
+# CONTACT SECTION with Discord notifications
 st.markdown('<h2 class="section-header">Get In Touch</h2>', unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 1])
@@ -435,15 +608,15 @@ with col1:
     
     st.markdown("### 📱 Connect with me:")
     st.markdown("""
-    **📧 Email:** devenbhasin4123@gmail.com  
-    **📱 Phone:** +61 0412711759  
-    **🔗 LinkedIn:** [linkedin.com/in/yourprofile](https://linkedin.com)  
-    **👨‍💻 GitHub:** [github.com/yourusername](https://github.com)  
+    **📧 Email:** [devenbhasin4123@gmail.com](mailto:devenbhasin4123@gmail.com)  
+    **📱 Phone:** [+61 0412711759](tel:+610412711759)  
+    **🔗 LinkedIn:** [linkedin.com/in/devenbhasin](https://www.linkedin.com/in/devenbhasin/)  
+    **👨‍💻 GitHub:** [github.com/dbhasin4123](https://github.com/dbhasin4123)  
     **📍 Location:** Brisbane, Queensland, Australia
     """)
 
 with col2:
-    st.markdown("### 💌 Send me a message")
+    st.markdown("### 💬 Send me a message")
     
     with st.form("contact_form"):
         st.markdown('<div class="contact-form">', unsafe_allow_html=True)
@@ -460,7 +633,7 @@ with col2:
         ])
         message = st.text_area("Message *", placeholder="Tell me about your inquiry...", height=120)
         
-        submitted = st.form_submit_button("Send Message 📤", use_container_width=True)
+        submitted = st.form_submit_button("Send Message 💬", use_container_width=True)
         
         if submitted:
             if not name or not email or not message:
@@ -468,10 +641,63 @@ with col2:
             elif "@" not in email:
                 st.error("Please enter a valid email address")
             else:
-                st.success("✅ Thank you for your message! I'll get back to you soon.")
-                st.info("📧 Message received! I typically respond within 24 hours.")
+                # Try to send Discord notification
+                success, msg = send_discord_notification(name, email, subject, message)
+                
+                if success:
+                    st.success("✅ Thank you for your message! I'll get back to you soon.")
+                    st.info("💬 Your message has been sent to Discord! I typically respond within 24 hours.")
+                else:
+                    # Try simple notification as fallback
+                    success_simple, msg_simple = send_simple_discord_notification(name, email, subject, message)
+                    
+                    if success_simple:
+                        st.success("✅ Thank you for your message! I'll get back to you soon.")
+                        st.info("💬 Your message has been sent! I typically respond within 24 hours.")
+                    else:
+                        # Fallback - show mailto link
+                        st.info("📧 Click here to send email directly:")
+                        mailto_link = f"mailto:devenbhasin4123@gmail.com?subject=Portfolio Contact: {subject}&body=Name: {name}%0D%0AEmail: {email}%0D%0A%0D%0AMessage:%0D%0A{message}"
+                        st.markdown(f"[📧 Send Email]({mailto_link})")
+                        st.warning(f"⚠️ Discord notification failed: {msg}. Please use the direct email link above.")
         
         st.markdown('</div>', unsafe_allow_html=True)
+
+# Discord Setup Instructions (only show if webhook not configured)
+webhook_url = os.getenv("DISCORD_WEBHOOK_URL") or st.secrets.get("DISCORD_WEBHOOK_URL", "")
+if not webhook_url:
+    st.markdown("---")
+    st.markdown("### 🔧 Discord Setup Instructions")
+    with st.expander("Click to see Discord webhook setup guide"):
+        st.markdown("""
+        **To enable Discord notifications:**
+        
+        1. **Create a Discord Server** (if you don't have one)
+        2. **Create a Webhook:**
+           - Go to your Discord server
+           - Right-click on a channel → Edit Channel
+           - Go to Integrations → Webhooks
+           - Click "New Webhook"
+           - Copy the webhook URL
+        
+        3. **Configure the webhook URL:**
+           
+           **For local development:**
+           ```bash
+           export DISCORD_WEBHOOK_URL="your_webhook_url_here"
+           ```
+           
+           **For Streamlit Cloud:**
+           - Go to your app settings
+           - Add a secret: `DISCORD_WEBHOOK_URL = "your_webhook_url_here"`
+           
+           **For other platforms:**
+           - Set the environment variable `DISCORD_WEBHOOK_URL`
+        
+        4. **Test the integration** by submitting a message through the contact form
+        
+        **Security Note:** Never commit webhook URLs to public repositories!
+        """)
 
 # FOOTER
 st.markdown("---")
@@ -480,5 +706,16 @@ st.markdown("""
     <p><strong>Built with ❤️ using Streamlit | © 2025 Deven Bhasin</strong></p>
     <p>🚀 Passionate about AI, Software Engineering, and Cloud Computing</p>
     <p>📧 Always open to new opportunities and collaborations</p>
+    <div style="margin-top: 20px;">
+        <a href="https://www.linkedin.com/in/devenbhasin/" target="_blank" style="margin: 0 10px; color: #667eea; text-decoration: none;">
+            LinkedIn
+        </a>
+        <a href="https://github.com/dbhasin4123" target="_blank" style="margin: 0 10px; color: #667eea; text-decoration: none;">
+            GitHub
+        </a>
+        <a href="mailto:devenbhasin4123@gmail.com" style="margin: 0 10px; color: #667eea; text-decoration: none;">
+            Email
+        </a>
+    </div>
 </div>
 """, unsafe_allow_html=True)
